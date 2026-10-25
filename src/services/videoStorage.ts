@@ -38,8 +38,8 @@ export async function deleteVideo(id: string): Promise<void> {
   if (video?.fileId) {
     try {
       await deleteFile(video.fileId);
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.error("delete video error : ", err);
     }
   }
 }

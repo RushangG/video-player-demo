@@ -63,7 +63,7 @@ export function deleteProgressForVideo(videoId: string): void {
       if (db[k].videoId === videoId) delete db[k];
     });
     localStorage.setItem(KEY, JSON.stringify(db));
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.error("Delete progress error : ", err);
   }
 }

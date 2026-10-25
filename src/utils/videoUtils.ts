@@ -40,12 +40,12 @@ export function calcPercentage(watchedSeconds: number, duration: number): number
   return Math.min(100, (watchedSeconds / duration) * 100);
 }
 
-/** XP = Max XP x (watch % / 100), rounded to 1 decimal. */
+// XP = Max XP x (watch % / 100)
 export function calcXP(maxXP: number, percentage: number): number {
   return Math.round(((maxXP * percentage) / 100) * 10) / 10;
 }
 
-/** Read duration of a video file / URL using a hidden <video> element. */
+// Read duration of a video file / URL using a hidden <video> element. 
 export function readVideoDuration(src: string, timeoutMs = 10000): Promise<number> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");

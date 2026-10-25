@@ -5,8 +5,8 @@ export function getCurrentUserId(): string {
   try {
     const v = localStorage.getItem(KEY);
     if (v && DEMO_USERS.includes(v)) return v;
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.error("get current user error : ", err);
   }
   return DEMO_USERS[0];
 }
@@ -14,7 +14,7 @@ export function getCurrentUserId(): string {
 export function setCurrentUserId(id: string): void {
   try {
     localStorage.setItem(KEY, id);
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.error("set current user error : ", err);
   }
 }

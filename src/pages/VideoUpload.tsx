@@ -86,8 +86,7 @@ export default function VideoUpload() {
         try {
           durationSeconds = await readVideoDuration(link.trim());
         } catch {
-          // e.g. HLS (.m3u8) cannot be read by a plain <video> in Chrome.
-          // The player fills in the duration the first time it is opened.
+         
           note =
             " Duration could not be read now; it will be detected on first play.";
         }
@@ -106,7 +105,7 @@ export default function VideoUpload() {
       setLink("");
       setFile(null);
     } catch (err) {
-      // roll back the file if metadata could not be saved
+     
       if (savedFileId) deleteFile(savedFileId).catch(() => undefined);
       setError(
         err instanceof Error

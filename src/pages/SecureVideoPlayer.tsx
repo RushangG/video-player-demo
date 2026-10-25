@@ -29,56 +29,44 @@ interface Stats {
   maxXP: number;
 }
 
-// Holder object: TypeScript cannot narrow its properties to `never`
-// when they are assigned inside async/closure code.
+
 interface Session {
   player: Player | null;
   objectUrl: string | null;
   persist: (() => void) | null;
 }
 
-const MAX_STEP = 1.5; // seconds - bigger jumps between timeupdates are seeks, not watching
+const MAX_STEP = 1.5; 
 const SAVE_EVERY_MS = 5000;
-const RESUME_GIVE_UP_MS = 10_000; // stop trying to resume after this long
+const RESUME_GIVE_UP_MS = 10_000; 
 
-/**
- * The DevTools guard is only active in production builds, so you can still
- * debug while developing. Set this to `true` to test the guard in `yarn dev`.
- */
+
 const GUARD_ENABLED: boolean = import.meta.env.PROD;
 
-/** Play mp4/webm links from a blob: URL so the original link is not in the page. */
 const HIDE_LINK_WITH_BLOB = true;
 
-/** Docked DevTools make the outer window noticeably bigger than the page. */
 function isDevToolsDocked(): boolean {
   const widthGap = window.outerWidth - window.innerWidth > 160;
   const heightGap = window.outerHeight - window.innerHeight > 160;
   return widthGap || heightGap;
 }
 
-/** An open DevTools makes a `debugger` statement pause, which takes time. */
 function isDebuggerPausing(): boolean {
   const start = performance.now();
-  // Function constructor so bundlers/minifiers do not strip the statement
   new Function("debugger")();
   return performance.now() - start > 120;
 }
 
-/** Token must be written by VideoPortal within this many milliseconds. */
+// token max time 15 seconds.
 const TOKEN_MAX_AGE_MS = 15_000;
 
-/** Same format that VideoPortal writes before opening the window. */
+
 function writeToken(videoId: string): void {
   const token = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
   localStorage.setItem(`svp_token_${videoId}`, token);
 }
 
-/**
- * Validate and consume the one-time session token written by VideoPortal.
- * Call this only ONCE per window (see tokenRef) - React Strict Mode runs
- * effects twice in development.
- */
+// check token
 function consumeToken(videoId: string): boolean {
   const key = `svp_token_${videoId}`;
   const raw = localStorage.getItem(key);
@@ -130,7 +118,7 @@ export default function SecureVideoPlayer() {
       return;
     }
 
-    // ── Token gate (runs the real check only once per window) ──────────────
+   
     if (!tokenRef.current || tokenRef.current.videoId !== videoId) {
       tokenRef.current = { videoId, ok: consumeToken(videoId) };
     }
@@ -140,7 +128,7 @@ export default function SecureVideoPlayer() {
       window.close();
       return;
     }
-    // ────────────────────────────────────────────────────────────────────────
+  
 
     let disposed = false;
     let locked = false;
@@ -148,7 +136,7 @@ export default function SecureVideoPlayer() {
     const session: Session = { player: null, objectUrl: null, persist: null };
     const userId = getCurrentUserId();
 
-    /** Save progress, destroy the player and show the blocked screen. */
+   
     const lock = (reason: string) => {
       if (locked) return;
       locked = true;
@@ -174,7 +162,7 @@ export default function SecureVideoPlayer() {
       }
       setTitle(video.topicName);
 
-      // 1. resolve the playable source
+    
       let src: string;
       let type: string;
       if (video.sourceType === "VIDEO_UPLOAD") {
@@ -202,8 +190,7 @@ export default function SecureVideoPlayer() {
         src = video.sourceUrl;
         type = guessMimeFromUrl(video.sourceUrl);
 
-        // Hide the original link: download the file and play it from a blob: URL.
-        // Not possible for HLS/DASH (many segments) or when the host blocks CORS.
+       
         const isStream =
           type === "application/x-mpegURL" || type === "application/dash+xml";
         if (HIDE_LINK_WITH_BLOB && !isStream) {
@@ -219,8 +206,8 @@ export default function SecureVideoPlayer() {
                 src = session.objectUrl;
               }
             }
-          } catch {
-            /* CORS or network problem: fall back to the direct link */
+          } catch(err) {
+            console.error("fetch video error : ", err);
           }
         }
       }
@@ -232,20 +219,19 @@ export default function SecureVideoPlayer() {
         return;
       }
 
-      // 2. load this student's saved progress
+     
       const saved =
         getProgress(userId, video.id) ?? emptyProgress(userId, video.id);
       let intervals: Interval[] = mergeIntervals(saved.watchedIntervals);
-      let duration = video.durationSeconds; // may be 0 for HLS links
+      let duration = video.durationSeconds; 
       let lastTime: number | null = null;
       let lastSave = 0;
 
-      // FIX: resume state. While `resumePending` is true we keep the OLD saved
-      // position (never overwrite it with 0) and do not count watched time.
+      
       const resumeTarget = saved.lastPositionSeconds;
       let resumePending = resumeTarget > 1;
 
-      // 3. create the Video.js player (standard pattern, not @videojs/react)
+      
       const el = document.createElement("video");
       el.className = "video-js vjs-big-play-centered";
       el.setAttribute("playsinline", "");
@@ -254,7 +240,7 @@ export default function SecureVideoPlayer() {
       el.setAttribute("oncontextmenu", "return false");
       container.appendChild(el);
 
-      // `player` is a const, so it is never null inside the callbacks below
+      
       const player: Player = videojs(el, {
         controls: true,
         fill: true,
@@ -285,7 +271,7 @@ export default function SecureVideoPlayer() {
       session.persist = () => {
         if (player.isDisposed()) return;
         intervals = mergeIntervals(intervals);
-        // FIX: do not overwrite the saved position with 0 before resume is done
+        
         const position = resumePending
           ? resumeTarget
           : (player.currentTime() ?? 0);
@@ -298,7 +284,7 @@ export default function SecureVideoPlayer() {
         });
       };
 
-      /** Read the real duration (HLS reports it late) and store it. */
+   
       const syncDuration = () => {
         const d = player.duration();
         if (typeof d === "number" && Number.isFinite(d) && d > 0) {
@@ -306,25 +292,22 @@ export default function SecureVideoPlayer() {
             duration = d;
             try {
               updateVideo(video.id, { durationSeconds: d });
-            } catch {
-              /* ignore */
+            } catch(err) {
+                console.error("update video error : ", err);
             }
           }
         }
       };
 
-      /** Try to jump to the saved position; called on several events. */
       const tryResume = () => {
         if (!resumePending || player.isDisposed()) return;
         syncDuration();
 
-        // saved position is (almost) the end -> start from the beginning
         if (duration > 0 && resumeTarget >= duration - 2) {
           resumePending = false;
           return;
         }
 
-        // wait until the stream is seekable up to the target
         const seekable = player.seekable();
         const canSeek =
           seekable &&
@@ -337,7 +320,6 @@ export default function SecureVideoPlayer() {
 
       player.src({ src, type });
 
-      // give up after a while so a bad stream can never block progress counting
       resumeTimer = window.setTimeout(() => {
         resumePending = false;
       }, RESUME_GIVE_UP_MS);
@@ -365,12 +347,11 @@ export default function SecureVideoPlayer() {
         if (resumePending) {
           tryResume();
           lastTime = null;
-          return; // do not count time before resume is done
+          return; 
         }
         const cur = player.currentTime() ?? 0;
         if (lastTime !== null) {
           const delta = cur - lastTime;
-          // only count smooth forward playback - a jump (seek) counts as nothing
           if (delta > 0 && delta <= MAX_STEP) {
             intervals.push([lastTime, cur]);
           }
@@ -389,7 +370,6 @@ export default function SecureVideoPlayer() {
       });
       player.on("seeked", () => {
         const cur = player.currentTime() ?? 0;
-        // resume finished once we are close to the saved position
         if (resumePending && Math.abs(cur - resumeTarget) < 2) {
           resumePending = false;
         }
@@ -411,7 +391,6 @@ export default function SecureVideoPlayer() {
 
     init();
 
-    // ---- deterrents (they slow people down; they cannot fully prevent copying) ----
     const onHide = () => session.persist?.();
 
     const endSession = () => {
@@ -431,11 +410,10 @@ export default function SecureVideoPlayer() {
         (e.metaKey && e.altKey && ["i", "j", "c"].includes(key)); // macOS
       const otherBlocked = mod && ["u", "s", "p"].includes(key);
 
-      // Address-bar focus shortcuts - trying to grab the URL ends the session
       const addressBarKey =
-        (mod && key === "l") || // Ctrl/Cmd+L
-        e.key === "F6" || // F6 (Chromium)
-        (e.altKey && key === "d"); // Alt+D (Windows)
+        (mod && key === "l") || 
+        e.key === "F6" || 
+        (e.altKey && key === "d");
 
       if (devToolsKey || otherBlocked || addressBarKey) {
         e.preventDefault();
@@ -446,7 +424,6 @@ export default function SecureVideoPlayer() {
       }
     };
 
-    /** End the session whenever the user copies anything (including the URL). */
     const onCopy = () => endSession();
 
     const stopEvent = (e: Event) => e.preventDefault();
@@ -532,7 +509,7 @@ export default function SecureVideoPlayer() {
           />
           {!started && !loading && (
             <div className="start-overlay">
-              <button onClick={startFullscreen}>▶ Start in full screen</button>
+              <button onClick={startFullscreen}>Start Video</button>
               <p>
                 Leaving full screen will end the session and close this window.
               </p>
