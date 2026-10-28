@@ -15,7 +15,6 @@ export function getVideos(): VideoData[] {
 }
 
 function writeVideos(videos: VideoData[]): void {
-  // Throws if storage is full / blocked - callers must handle it.
   localStorage.setItem(KEY, JSON.stringify(videos));
 }
 

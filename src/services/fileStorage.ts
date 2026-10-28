@@ -1,4 +1,4 @@
-// Stores uploaded video files (Blobs) in IndexedDB. localStorage is too small (~5MB).
+// Stores uploaded video files (Blobs) in IndexedDB.
 const DB_NAME = "secure-video-portal";
 const STORE = "files";
 

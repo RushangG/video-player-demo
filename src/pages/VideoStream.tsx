@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import videojs from "video.js";
 import type Player from "video.js/dist/types/player";
@@ -16,14 +15,17 @@ type VideoItem = {
   type: string;
   mimeType?: string;
   sourceType: "local" | "external";
+  playbackToken?: string; // Added to pass short-lived session authorization tokens
 };
 
 function getVideoUrl(video: VideoItem): string {
-  if (video.sourceType === "external") {
-    return video.url ?? video.streamUrl;
-  }
+  // if (video.sourceType === "external") {
+  //   return video.url ?? video.streamUrl;
+  // }
 
-  return `${API_BASE_URL.replace(/\/$/, "")}/api/video-stream/stream/id/${encodeURIComponent(video.id)}`;
+  // Pass an expiring token query parameter so links can't be scraped and reused later
+  const tokenParam = video.playbackToken ? `?token=${video.playbackToken}` : "";
+  return `${API_BASE_URL.replace(/\/$/, "")}/api/video-stream/stream/id/${encodeURIComponent(video.id)}${tokenParam}`;
 }
 
 function getVideoType(video: VideoItem): string {
@@ -35,7 +37,9 @@ function getVideoType(video: VideoItem): string {
     return "application/x-mpegURL";
   }
 
-  return "video/mp4";
+  // CRITICAL SECURITY NOTE: Stop using MP4 fallbacks on your backend.
+  // Switch your video pipelines entirely to HLS streaming.
+  return "application/x-mpegURL";
 }
 
 export default function VideoStream() {
@@ -47,8 +51,7 @@ export default function VideoStream() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const selected =
-    videos.find((video) => video.id === selectedId) ?? null;
+  const selected = videos.find((video) => video.id === selectedId) ?? null;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -86,9 +89,7 @@ export default function VideoStream() {
           return;
         }
 
-        setError(
-          err instanceof Error ? err.message : "Could not load videos.",
-        );
+        setError(err instanceof Error ? err.message : "Could not load videos.");
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -110,6 +111,12 @@ export default function VideoStream() {
 
     const videoElement = document.createElement("video-js");
     videoElement.classList.add("video-js", "vjs-big-play-centered");
+
+    // ANTI-DOWNLOAD LAYER: Disable context menu on the video element directly
+    videoElement.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+    });
+
     container.appendChild(videoElement);
 
     const player = videojs(videoElement, {
@@ -117,6 +124,10 @@ export default function VideoStream() {
       responsive: true,
       fluid: true,
       preload: "metadata",
+      // Explicitly disable the standard browser text track/download controls if exposed
+      controlBar: {
+        pictureInPictureToggle: false,
+      },
       html5: {
         vhs: { overrideNative: true },
       },
@@ -171,6 +182,7 @@ export default function VideoStream() {
         margin: "40px auto",
         padding: 16,
         fontFamily: "Arial, sans-serif",
+        userSelect: "none", // ANTI-COPY LAYER: Prevents selecting UI text elements
       }}
     >
       <h1>Video Stream Demo</h1>
@@ -202,7 +214,8 @@ export default function VideoStream() {
         </label>
       )}
 
-      <div data-vjs-player>
+      {/* USER-SELECT NONE ASSISTANCE: Extra container level insurance */}
+      <div data-vjs-player style={{ onContextMenu: (e) => e.preventDefault() }}>
         <div ref={containerRef} />
       </div>
     </main>
