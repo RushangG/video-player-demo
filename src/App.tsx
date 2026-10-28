@@ -13,7 +13,7 @@ function Layout({ children }: { children: React.ReactNode }) {
           Portal
         </NavLink>
         <NavLink to="/admin">Admin</NavLink>
-        {/* <NavLink to="/video-stream-demo">video stream</NavLink> */}
+        <NavLink to="/video-stream-demo">video stream</NavLink>
       </nav>
       <main className="container">{children}</main>
     </>
