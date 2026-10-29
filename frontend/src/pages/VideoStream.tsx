@@ -170,7 +170,7 @@ export default function VideoStream() {
         >
           {videos.map((video) => (
             <option key={video.id} value={video.id}>
-              {video.title} ({video.sourceType})
+              {video.title}
             </option>
           ))}
         </select>
