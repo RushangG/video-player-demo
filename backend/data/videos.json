@@ -11,5 +11,11 @@
     "title": "External Demo Video",
     "sourceType": "external",
     "url": "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4"
+  },
+  {
+    "id": "3",
+    "title": "External Demo Video 2",
+    "sourceType": "external",
+    "url": "https://samplelib.com/mp4/sample-20s.mp4"
   }
 ]

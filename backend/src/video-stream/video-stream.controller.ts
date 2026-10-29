@@ -1,35 +1,30 @@
-
 import {
   Controller,
   Get,
   Post,
   Param,
-  Headers,
-  Res,
   Req,
-  NotFoundException,
-  BadRequestException,
-  ServiceUnavailableException,
+  Res,
   ForbiddenException,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { createReadStream, statSync } from 'node:fs';
-import axios from 'axios';
+import { spawn } from 'node:child_process';
 import { VideoStreamService } from './video-stream.service';
+import ffmpegStatic from 'ffmpeg-static';
 
-const CHUNK_SIZE = 1024 * 1024;
+const SEGMENT_DURATION = 4;
 
 @Controller('api/video-stream')
 export class VideoStreamController {
-  constructor(private readonly service: VideoStreamService) { }
+  constructor(private readonly service: VideoStreamService) {}
 
   @Post('videos')
   listVideos() {
-    return this.service.listVideos().map(({ id, title, sourceType }) => ({
-      id,
-      title,
-      sourceType,
-    }));
+    return this.service
+      .listVideos()
+      .map(({ id, title, sourceType }) => ({ id, title, sourceType }));
   }
 
   @Post('session/:id')
@@ -37,190 +32,143 @@ export class VideoStreamController {
     @Param('id') id: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const session: unknown = this.service.createSession(id);
-
-    let token: unknown;
-
-    if (typeof session === 'string') {
-      token = session;
-    } else if (
-      typeof session === 'object' &&
-      session !== null &&
-      'token' in session
-    ) {
-      token = session.token;
-    }
-
-    if (typeof token !== 'string' || !token) {
-      throw new ForbiddenException('Unable to create video session');
-    }
-
-    res.cookie(`video_session_${id}`, token, {
+    const session = this.service.createSession(id);
+    res.cookie(`video_session_${id}`, session.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 5 * 60 * 1000,
+      maxAge: 60 * 60 * 1000,
       path: '/',
     });
-
     return { message: 'Video session created' };
   }
 
-  @Get('stream/:id')
-  async streamVideo(
+  @Get('stream/:id/playlist.m3u8')
+  async getVirtualPlaylist(
     @Param('id') id: string,
     @Req() req: Request,
-    @Headers('range') range: string | undefined,
     @Res() res: Response,
   ) {
-    const cookieValue: unknown =
-      req.cookies?.[`video_session_${id}`];
-
-    if (!cookieValue) {
-      throw new ForbiddenException('Video session cookie missing');
-    }
-
-    let token: unknown = cookieValue;
-
-    if (typeof cookieValue === 'object' && cookieValue !== null) {
-      token = 'token' in cookieValue ? cookieValue.token : undefined;
-    } else if (
-      typeof cookieValue === 'string' &&
-      cookieValue.startsWith('j:')
-    ) {
-      try {
-        const parsed: unknown = JSON.parse(cookieValue.slice(2));
-
-        token =
-          typeof parsed === 'object' && parsed !== null && 'token' in parsed
-            ? parsed.token
-            : undefined;
-      } catch {
-        throw new ForbiddenException('Invalid video session cookie');
-      }
-    }
-
-    if (typeof token !== 'string' || !token) {
-      throw new ForbiddenException('Invalid video session token');
-    }
-
+    const token = this.extractToken(id, req);
     const video = this.service.checkSession(id, token);
+    const videoSource = this.service.getVideoTargetSource(video);
 
-    const rangeHeader = range || `bytes=0-${CHUNK_SIZE - 1}`;
-    const match = /^bytes=(\d+)-(\d*)$/.exec(rangeHeader);
+    let duration = this.service.getVideoDuration(videoSource);
+    if (duration === 0) duration = 60; // Safe backup fallback
 
-    if (!match) {
-      throw new BadRequestException('Invalid byte range');
+    res.setHeader('Content-Type', 'application/x-mpegURL');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+    let manifest = `#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:${SEGMENT_DURATION}\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n`;
+
+    let remainingTime = duration;
+    let index = 0;
+    while (remainingTime > 0) {
+      const currentChunkLength = Math.min(SEGMENT_DURATION, remainingTime);
+      manifest += `#EXTINF:${currentChunkLength.toFixed(6)},\n`;
+      manifest += `segment_${index}.ts\n`;
+      remainingTime -= currentChunkLength;
+      index++;
     }
+    manifest += '#EXT-X-ENDLIST';
 
-    const start = Number(match[1]);
-    const requestedEnd = match[2]
-      ? Number(match[2])
-      : start + CHUNK_SIZE - 1;
+    return res.status(200).send(manifest);
+  }
 
-    if (
-      !Number.isSafeInteger(start) ||
-      !Number.isSafeInteger(requestedEnd) ||
-      start < 0 ||
-      requestedEnd < start ||
-      requestedEnd - start + 1 > CHUNK_SIZE
-    ) {
-      throw new BadRequestException('Maximum range is 1 MB');
-    }
+  @Get('stream/:id/segment_:index.ts')
+  async getVirtualSegment(
+    @Param('id') id: string,
+    @Param('index') index: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const token = this.extractToken(id, req);
+    const video = this.service.checkSession(id, token);
+    const videoSource = this.service.getVideoTargetSource(video);
+    const startTime = Number(index) * SEGMENT_DURATION;
 
-    const end = Math.min(requestedEnd, start + CHUNK_SIZE - 1);
-
-    res.setHeader('Content-Type', 'video/mp4');
-    res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-
-    // Stream a local MP4 file.
-    if (video.sourceType === 'local') {
-      if (!video.filename) {
-        throw new NotFoundException('Filename missing');
-      }
-
-      const path = this.service.getLocalPath(video.filename);
-
-      let size: number;
-
-      try {
-        size = statSync(path).size;
-      } catch {
-        throw new NotFoundException('Video file not found');
-      }
-
-      if (start >= size) {
-        res.setHeader('Content-Range', `bytes */${size}`);
-        return res.status(416).end();
-      }
-
-      const actualEnd = Math.min(end, size - 1);
-
-      res.status(206);
-      res.setHeader(
-        'Content-Range',
-        `bytes ${start}-${actualEnd}/${size}`,
+    if (!ffmpegStatic) {
+      throw new NotFoundException(
+        'FFmpeg binary path missing. Install ffmpeg-static.',
       );
-      res.setHeader('Content-Length', actualEnd - start + 1);
-
-      const stream = createReadStream(path, {
-        start,
-        end: actualEnd,
-      });
-
-      stream.on('error', () => res.destroy());
-      return stream.pipe(res);
     }
 
-    // Stream an external HTTPS MP4 URL.
-    if (!video.url || !video.url.startsWith('https://')) {
-      throw new NotFoundException('Invalid external MP4 URL');
+    res.setHeader('Content-Type', 'video/MP2T');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+
+    let ffmpegArgs: string[] = [];
+
+    if (video.sourceType === 'local') {
+      ffmpegArgs = [
+        '-ss',
+        startTime.toString(),
+        '-t',
+        SEGMENT_DURATION.toString(),
+        '-i',
+        videoSource,
+        '-output_ts_offset',
+        startTime.toString(),
+        '-c:v',
+        'copy',
+        '-c:a',
+        'aac',
+        '-muxdelay',
+        '0',
+        '-f',
+        'mpegts',
+        'pipe:1',
+      ];
+    } else {
+      ffmpegArgs = [
+        '-protocol_whitelist',
+        'file,http,https,tcp,tls',
+        '-headers',
+        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\n',
+        '-i',
+        videoSource,
+        '-ss',
+        startTime.toString(),
+        '-t',
+        SEGMENT_DURATION.toString(),
+        '-output_ts_offset',
+        startTime.toString(),
+        '-c:v',
+        'libx264',
+        '-preset',
+        'ultrafast',
+        '-tune',
+        'zerolatency',
+        '-g',
+        '30',
+        '-c:a',
+        'aac',
+        '-b:a',
+        '128k',
+        '-fflags',
+        '+nobuffer+flush_packets',
+        '-f',
+        'mpegts',
+        'pipe:1',
+      ];
     }
 
-    try {
-      const remote = await axios.get(video.url, {
-        responseType: 'stream',
-        headers: {
-          Range: `bytes=${start}-${end}`,
-        },
-        timeout: 15000,
-        maxRedirects: 0,
-        validateStatus: (status) => status === 206,
-      });
+    const ffmpeg = spawn(ffmpegStatic, ffmpegArgs);
 
-      res.status(206);
+    ffmpeg.on('error', (err) => {
+      console.error('FFmpeg chunk rendering failed:', err.message);
+      if (!res.headersSent) res.status(500).end();
+    });
 
-      for (const header of [
-        'content-range',
-        'content-length',
-        'accept-ranges',
-      ]) {
-        const value = remote.headers[header];
+    ffmpeg.stdout.pipe(res);
 
-        if (value) {
-          const responseHeader =
-            header === 'content-range'
-              ? 'Content-Range'
-              : header === 'content-length'
-                ? 'Content-Length'
-                : 'Accept-Ranges';
+    res.on('close', () => {
+      ffmpeg.kill('SIGKILL');
+    });
+  }
 
-          res.setHeader(responseHeader, String(value));
-        }
-      }
-
-      remote.data.on('error', () => res.destroy());
-      return remote.data.pipe(res);
-    } catch {
-      if (!res.headersSent) {
-        throw new ServiceUnavailableException(
-          'External server must support MP4 byte ranges',
-        );
-      }
-
-      res.destroy();
-    }
+  private extractToken(id: string, req: Request): string {
+    const cookieValue = req.cookies?.[`video_session_${id}`];
+    if (!cookieValue) throw new ForbiddenException('Session missing');
+    return typeof cookieValue === 'object' ? cookieValue?.token : cookieValue;
   }
 }

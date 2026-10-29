@@ -42,13 +42,23 @@ export default function VideoStream() {
     element.classList.add("vjs-big-play-centered");
     containerRef.current.appendChild(element);
 
+    // React Frontend: VideoStream.tsx
     const player = videojs(element, {
       controls: true,
       responsive: true,
       fluid: true,
-      preload: "metadata",
+      preload: "auto",
       controlBar: {
         pictureInPictureToggle: false,
+      },
+      html5: {
+        vhs: {
+          withCredentials: true,
+
+          goalBufferLength: 45,
+          maxGoalBufferLength: 90,
+          bufferLowWaterLine: 15,
+        },
       },
     });
 
@@ -63,46 +73,49 @@ export default function VideoStream() {
   // 3. Request a session and start the selected video.
   useEffect(() => {
     const player = playerRef.current;
-
     if (!player || !selectedId) return;
 
     let cancelled = false;
 
-   
-async function playVideo() {
-  try {
-    setError("");
+    async function playVideo() {
+      try {
+        setError("");
 
-    await axios.post(
-      `${API}/session/${encodeURIComponent(selectedId)}`,
-      {},
-      { withCredentials: true },
-    );
+        // 1. Reset player state before fetching the new video to avoid playlist collisions
+        player?.reset();
 
-    if (cancelled) return;
+        await axios.post(
+          `${API}/session/${encodeURIComponent(selectedId)}`,
+          {},
+          { withCredentials: true },
+        );
 
-    player.src({
-      src: `${API}/stream/${encodeURIComponent(selectedId)}`,
-      type: "video/mp4",
-    });
+        if (cancelled) return;
 
-    player.load();
-  } catch (error) {
-    console.error("Video playback error:", error);
+        // 2. Load the dynamic HLS playlist path
+        player?.src({
+          src: `${API}/stream/${encodeURIComponent(selectedId)}/playlist.m3u8`,
+          type: "application/x-mpegURL",
+        });
 
-    if (!cancelled) {
-      setError("Unable to start video. Please try again.");
+        player?.load();
+
+        // 3. Auto-play the video as soon as the manifest is fetched
+        player?.play()?.catch(() => {
+          console.log("User interaction required before autoplay can begin.");
+        });
+      } catch (error) {
+        console.error("Video playback error:", error);
+        if (!cancelled) {
+          setError("Unable to start video. Please try again.");
+        }
+      }
     }
-  }
-}
-
 
     void playVideo();
 
     return () => {
       cancelled = true;
-      player.pause();
-      player.reset();
     };
   }, [selectedId]);
 
