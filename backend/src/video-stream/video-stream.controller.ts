@@ -6,7 +6,6 @@ import {
   Req,
   Res,
   ForbiddenException,
-  BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
@@ -54,7 +53,7 @@ export class VideoStreamController {
     const videoSource = this.service.getVideoTargetSource(video);
 
     let duration = this.service.getVideoDuration(videoSource);
-    if (duration === 0) duration = 60; // Safe backup fallback
+    if (duration === 0) duration = 60;
 
     res.setHeader('Content-Type', 'application/x-mpegURL');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -96,67 +95,78 @@ export class VideoStreamController {
     res.setHeader('Content-Type', 'video/MP2T');
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
 
-    let ffmpegArgs: string[] = [];
-
-    if (video.sourceType === 'local') {
-      ffmpegArgs = [
-        '-ss',
-        startTime.toString(),
-        '-t',
-        SEGMENT_DURATION.toString(),
-        '-i',
-        videoSource,
-        '-output_ts_offset',
-        startTime.toString(),
-        '-c:v',
-        'copy',
-        '-c:a',
-        'aac',
-        '-muxdelay',
-        '0',
-        '-f',
-        'mpegts',
-        'pipe:1',
-      ];
-    } else {
-      ffmpegArgs = [
-        '-protocol_whitelist',
-        'file,http,https,tcp,tls',
-        '-headers',
-        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\n',
-        '-i',
-        videoSource,
-        '-ss',
-        startTime.toString(),
-        '-t',
-        SEGMENT_DURATION.toString(),
-        '-output_ts_offset',
-        startTime.toString(),
-        '-c:v',
-        'libx264',
-        '-preset',
-        'ultrafast',
-        '-tune',
-        'zerolatency',
-        '-g',
-        '30',
-        '-c:a',
-        'aac',
-        '-b:a',
-        '128k',
-        '-fflags',
-        '+nobuffer+flush_packets',
-        '-f',
-        'mpegts',
-        'pipe:1',
-      ];
-    }
+    const ffmpegArgs =
+      video.sourceType === 'local'
+        ? [
+            '-ss',
+            startTime.toString(),
+            '-t',
+            SEGMENT_DURATION.toString(),
+            '-i',
+            videoSource,
+            '-output_ts_offset',
+            startTime.toString(),
+            '-c:v',
+            'copy',
+            '-c:a',
+            'aac',
+            '-muxdelay',
+            '0',
+            '-f',
+            'mpegts',
+            'pipe:1',
+          ]
+        : [
+            '-protocol_whitelist',
+            'file,http,https,tcp,tls',
+            '-headers',
+            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\n',
+            '-i',
+            videoSource,
+            '-ss',
+            startTime.toString(),
+            '-t',
+            SEGMENT_DURATION.toString(),
+            '-output_ts_offset',
+            startTime.toString(),
+            '-c:v',
+            'libx264',
+            '-preset',
+            'ultrafast',
+            '-tune',
+            'zerolatency',
+            '-g',
+            '30',
+            '-c:a',
+            'aac',
+            '-b:a',
+            '128k',
+            '-fflags',
+            '+nobuffer+flush_packets',
+            '-f',
+            'mpegts',
+            'pipe:1',
+          ];
 
     const ffmpeg = spawn(ffmpegStatic, ffmpegArgs);
+    let errorLog = '';
+
+    ffmpeg.stderr.on('data', (chunk: Buffer) => {
+      errorLog += chunk.toString('utf8');
+      if (errorLog.length > 1000) errorLog = errorLog.slice(-1000); // Limit memory usage
+    });
 
     ffmpeg.on('error', (err) => {
-      console.error('FFmpeg chunk rendering failed:', err.message);
+      console.error(`FFmpeg spawn failure on chunk ${index}:`, err.message);
       if (!res.headersSent) res.status(500).end();
+    });
+
+    ffmpeg.on('exit', (code) => {
+      if (code !== 0 && code !== null) {
+        console.error(
+          `FFmpeg exited with error code ${code} on chunk ${index}. Details:\n${errorLog}`,
+        );
+      }
     });
 
     ffmpeg.stdout.pipe(res);

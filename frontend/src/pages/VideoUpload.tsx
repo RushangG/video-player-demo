@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { ChangeEvent } from "react";
 import type { VideoData, VideoSourceType } from "../types/video";
 import { deleteVideo, getVideos, saveVideo } from "../services/videoStorage";
@@ -15,9 +15,7 @@ export default function VideoUpload() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [videos, setVideos] = useState<VideoData[]>([]);
-
-  useEffect(() => setVideos(getVideos()), []);
+  const [videos, setVideos] = useState(() => getVideos());
 
   const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
     setFile(e.target.files?.[0] ?? null);
@@ -86,7 +84,6 @@ export default function VideoUpload() {
         try {
           durationSeconds = await readVideoDuration(link.trim());
         } catch {
-         
           note =
             " Duration could not be read now; it will be detected on first play.";
         }
@@ -105,7 +102,6 @@ export default function VideoUpload() {
       setLink("");
       setFile(null);
     } catch (err) {
-     
       if (savedFileId) deleteFile(savedFileId).catch(() => undefined);
       setError(
         err instanceof Error
@@ -172,7 +168,7 @@ export default function VideoUpload() {
 
       {sourceType === "VIDEO_LINK" ? (
         <div className="field">
-          <label htmlFor="link">Video URL (mp4, webm or m3u8)</label>
+          <label htmlFor="link">Video URL (mp4)</label>
           <input
             id="link"
             type="url"

@@ -8,14 +8,26 @@
   },
   {
     "id": "2",
+    "title": "Local Demo Video 2",
+    "sourceType": "local",
+    "filename": "test-video-2.mp4"
+  },
+  {
+    "id": "3",
     "title": "External Demo Video",
     "sourceType": "external",
     "url": "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4"
   },
   {
-    "id": "3",
+    "id": "4",
     "title": "External Demo Video 2",
     "sourceType": "external",
-    "url": "https://samplelib.com/mp4/sample-20s.mp4"
+    "url": "https://,samplelib.com/mp4/sample-10s-2160p.mp4"
+  },
+  {
+    "id": "5",
+    "title": "External Demo Video 3",
+    "sourceType": "external",
+    "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
   }
 ]

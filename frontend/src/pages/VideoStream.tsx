@@ -20,21 +20,20 @@ export default function VideoStream() {
   const [selectedId, setSelectedId] = useState("");
   const [error, setError] = useState("");
 
-  // 1. Load the video list using POST.
+  // Progress tracking states
+  const [currentPercent, setCurrentPercent] = useState<number>(0);
+  const [highestPercent, setHighestPercent] = useState<number>(0);
+
   useEffect(() => {
     axios
       .post<VideoItem[]>(`${API}/videos`)
       .then(({ data }) => {
         setVideos(data);
-
-        if (data.length) {
-          setSelectedId(data[0].id);
-        }
+        if (data.length) setSelectedId(data[0].id);
       })
       .catch(() => setError("Unable to load videos"));
   }, []);
 
-  // 2. Create the Video.js player once.
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -42,24 +41,52 @@ export default function VideoStream() {
     element.classList.add("vjs-big-play-centered");
     containerRef.current.appendChild(element);
 
-    // React Frontend: VideoStream.tsx
     const player = videojs(element, {
       controls: true,
       responsive: true,
       fluid: true,
       preload: "auto",
-      controlBar: {
-        pictureInPictureToggle: false,
-      },
+      controlBar: { pictureInPictureToggle: false },
       html5: {
         vhs: {
           withCredentials: true,
-
-          goalBufferLength: 45,
-          maxGoalBufferLength: 90,
-          bufferLowWaterLine: 15,
+          goalBufferLength: 30,
+          maxGoalBufferLength: 60,
+          bufferLowWaterLine: 10,
+          experimentalBufferBasedABR: true,
+          fastStart: true,
+          smoothQualityChange: true,
         },
       },
+    });
+
+    player.on("timeupdate", () => {
+      const currentTime = player.currentTime() || 0;
+      const duration = player.duration() || 0;
+
+      if (duration > 0) {
+        const percentage = Math.floor((currentTime / duration) * 100);
+
+        setCurrentPercent(percentage);
+
+        setHighestPercent((prevHighest) => {
+          const nextHighest =
+            percentage > prevHighest ? percentage : prevHighest;
+
+          return nextHighest;
+        });
+      }
+    });
+
+    player.on("waiting", () => {
+      const currentTech = player.tech({
+        IWillNotUseThisInAppCode: true,
+      }) as { vhs?: { bufferLength_: number } } | undefined;
+
+      if (currentTech && currentTech.vhs && currentTech.vhs.bufferLength_ > 0) {
+        const time = player.currentTime() || 0;
+        player.currentTime(time + 0.1);
+      }
     });
 
     playerRef.current = player;
@@ -70,7 +97,6 @@ export default function VideoStream() {
     };
   }, []);
 
-  // 3. Request a session and start the selected video.
   useEffect(() => {
     const player = playerRef.current;
     if (!player || !selectedId) return;
@@ -81,7 +107,9 @@ export default function VideoStream() {
       try {
         setError("");
 
-        // 1. Reset player state before fetching the new video to avoid playlist collisions
+        setCurrentPercent(0);
+        setHighestPercent(0);
+
         player?.reset();
 
         await axios.post(
@@ -92,7 +120,6 @@ export default function VideoStream() {
 
         if (cancelled) return;
 
-        // 2. Load the dynamic HLS playlist path
         player?.src({
           src: `${API}/stream/${encodeURIComponent(selectedId)}/playlist.m3u8`,
           type: "application/x-mpegURL",
@@ -100,20 +127,19 @@ export default function VideoStream() {
 
         player?.load();
 
-        // 3. Auto-play the video as soon as the manifest is fetched
-        player?.play()?.catch(() => {
-          console.log("User interaction required before autoplay can begin.");
-        });
-      } catch (error) {
-        console.error("Video playback error:", error);
-        if (!cancelled) {
-          setError("Unable to start video. Please try again.");
+        const playPromise = player?.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            console.log("Autoplay blocked. Awaiting user interaction.");
+          });
         }
+      } catch (err) {
+        console.error("Playback startup error:", err);
+        if (!cancelled) setError("Unable to start video. Please try again.");
       }
     }
 
     void playVideo();
-
     return () => {
       cancelled = true;
     };
@@ -130,11 +156,17 @@ export default function VideoStream() {
     >
       <h1>Video Streaming Demo</h1>
 
-      <label>
+      <label style={{ fontWeight: "bold" }}>
         Select video:{" "}
         <select
           value={selectedId}
-          onChange={(event) => setSelectedId(event.target.value)}
+          onChange={(e) => setSelectedId(e.target.value)}
+          style={{
+            padding: "6px 12px",
+            marginLeft: 8,
+            fontSize: "16px",
+            borderRadius: "4px",
+          }}
         >
           {videos.map((video) => (
             <option key={video.id} value={video.id}>
@@ -144,13 +176,32 @@ export default function VideoStream() {
         </select>
       </label>
 
+      <div
+        style={{
+          marginTop: 15,
+          padding: 12,
+          background: "#f0f0f0",
+          borderRadius: 4,
+        }}
+      >
+        Progress Tracking: Current Position: <strong>{currentPercent}%</strong>{" "}
+        | Total Viewed: <strong>{highestPercent}% / 100%</strong>
+      </div>
+
       {error && (
-        <p role="alert" style={{ color: "crimson" }}>
+        <p role="alert" style={{ color: "crimson", marginTop: 12 }}>
           {error}
         </p>
       )}
 
-      <div style={{ marginTop: 20 }}>
+      <div
+        style={{
+          marginTop: 20,
+          background: "#000",
+          borderRadius: "8px",
+          overflow: "hidden",
+        }}
+      >
         <div ref={containerRef} />
       </div>
     </main>
