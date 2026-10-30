@@ -27,6 +27,8 @@ type SessionData = {
   process?: ChildProcess;
 };
 
+const EXTERNAL_URL_SEGMENT_DURATION = 20;
+
 @Injectable()
 export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
   private readonly videosPath = resolve(process.cwd(), 'data/videos.json');
@@ -105,7 +107,7 @@ export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
           '-c:a',
           'copy',
           '-hls_time',
-          '4',
+          String(EXTERNAL_URL_SEGMENT_DURATION),
           '-hls_list_size',
           '0',
           '-hls_playlist_type',
@@ -128,7 +130,7 @@ export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
           '-bsf:v',
           'h264_mp4toannexb',
           '-hls_time',
-          '4',
+          String(EXTERNAL_URL_SEGMENT_DURATION),
           '-hls_list_size',
           '0',
           '-hls_playlist_type',

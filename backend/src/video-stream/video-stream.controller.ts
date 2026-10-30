@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { VideoStreamService } from './video-stream.service';
 import ffmpegStatic from 'ffmpeg-static';
 
-const SEGMENT_DURATION = 4;
+const SEGMENT_DURATION = 20;
 
 @Controller('api/video-stream')
 export class VideoStreamController {
