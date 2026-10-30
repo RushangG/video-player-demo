@@ -24,8 +24,8 @@ export default function VideoUpload() {
   const validate = (): string | null => {
     if (!topicName.trim()) return "Enter a topic name.";
     const xpNumber = Number(xp);
-    if (!Number.isFinite(xpNumber) || xpNumber <= 0)
-      return "XP must be greater than 0.";
+    if (!Number.isFinite(xpNumber) || xpNumber <= 0 || xpNumber > 50)
+      return "XP must be between 0 to 50.";
     if (sourceType === "VIDEO_LINK") {
       try {
         const u = new URL(link.trim());
@@ -140,6 +140,7 @@ export default function VideoUpload() {
           id="xp"
           type="number"
           min={1}
+          max={50}
           value={xp}
           onChange={(e) => setXP(e.target.value)}
         />

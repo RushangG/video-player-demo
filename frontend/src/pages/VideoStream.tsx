@@ -56,6 +56,7 @@ export default function VideoStream() {
           experimentalBufferBasedABR: true,
           fastStart: true,
           smoothQualityChange: true,
+          liveui: false,
         },
       },
     });
