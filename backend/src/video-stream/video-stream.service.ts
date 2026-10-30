@@ -140,9 +140,7 @@ export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
 
     if (ffmpegStatic) {
       ffmpegProcess = spawn(ffmpegStatic, ffmpegArgs);
-      console.log(
-        `[Worker] Started pipeline for Video ID: ${video.id} -> Title: "${video.title}"`,
-      );
+      
 
       let lastLoggedSegment = -1;
       ffmpegProcess.stderr?.on('data', (chunk: Buffer) => {
@@ -154,9 +152,7 @@ export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
         if (segmentMatch && segmentMatch[1]) {
           const segmentIndex = parseInt(segmentMatch[1], 10);
           if (segmentIndex !== lastLoggedSegment) {
-            console.log(
-              `[Video ${video.id}] Chunk generated successfully: segment_${segmentIndex}.ts`,
-            );
+            
             lastLoggedSegment = segmentIndex;
           }
         }
