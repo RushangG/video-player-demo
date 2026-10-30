@@ -50,9 +50,9 @@ export default function VideoStream() {
       html5: {
         vhs: {
           withCredentials: true,
-          goalBufferLength: 30,
-          maxGoalBufferLength: 60,
-          bufferLowWaterLine: 10,
+          goalBufferLength: 45,
+          maxGoalBufferLength: 90,
+          bufferLowWaterLine: 15,
           experimentalBufferBasedABR: true,
           fastStart: true,
           smoothQualityChange: true,

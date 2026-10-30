@@ -29,19 +29,17 @@ interface Stats {
   maxXP: number;
 }
 
-
 interface Session {
   player: Player | null;
   objectUrl: string | null;
   persist: (() => void) | null;
 }
 
-const MAX_STEP = 1.5; 
-const SAVE_EVERY_MS = 5000;
-const RESUME_GIVE_UP_MS = 10_000; 
+const MAX_STEP = 1.5; // seconds
+const SAVE_EVERY_MS = 5000; // milliseconds
+const RESUME_GIVE_UP_MS = 10_000; // milliseconds
 
-
-const GUARD_ENABLED: boolean = import.meta.env.PROD;
+const GUARD_ENABLED: boolean = false; // Set to true to enable the guard against dev tools and debugging
 
 const HIDE_LINK_WITH_BLOB = true;
 
@@ -57,16 +55,13 @@ function isDebuggerPausing(): boolean {
   return performance.now() - start > 120;
 }
 
-// token max time 15 seconds.
 const TOKEN_MAX_AGE_MS = 15_000;
-
 
 function writeToken(videoId: string): void {
   const token = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
   localStorage.setItem(`svp_token_${videoId}`, token);
 }
 
-// check token
 function consumeToken(videoId: string): boolean {
   const key = `svp_token_${videoId}`;
   const raw = localStorage.getItem(key);
@@ -112,13 +107,12 @@ export default function SecureVideoPlayer() {
   };
 
   useEffect(() => {
-    if (!videoId) {
+    if (!videoId || !pageRef.current || !containerRef.current) {
       setError("No video selected.");
       setLoading(false);
       return;
     }
 
-   
     if (!tokenRef.current || tokenRef.current.videoId !== videoId) {
       tokenRef.current = { videoId, ok: consumeToken(videoId) };
     }
@@ -128,7 +122,6 @@ export default function SecureVideoPlayer() {
       window.close();
       return;
     }
-  
 
     let disposed = false;
     let locked = false;
@@ -136,7 +129,6 @@ export default function SecureVideoPlayer() {
     const session: Session = { player: null, objectUrl: null, persist: null };
     const userId = getCurrentUserId();
 
-   
     const lock = (reason: string) => {
       if (locked) return;
       locked = true;
@@ -162,7 +154,6 @@ export default function SecureVideoPlayer() {
       }
       setTitle(video.topicName);
 
-    
       let src: string;
       let type: string;
       if (video.sourceType === "VIDEO_UPLOAD") {
@@ -190,7 +181,6 @@ export default function SecureVideoPlayer() {
         src = video.sourceUrl;
         type = guessMimeFromUrl(video.sourceUrl);
 
-       
         const isStream =
           type === "application/x-mpegURL" || type === "application/dash+xml";
         if (HIDE_LINK_WITH_BLOB && !isStream) {
@@ -206,7 +196,7 @@ export default function SecureVideoPlayer() {
                 src = session.objectUrl;
               }
             }
-          } catch(err) {
+          } catch (err) {
             console.error("fetch video error : ", err);
           }
         }
@@ -219,19 +209,16 @@ export default function SecureVideoPlayer() {
         return;
       }
 
-     
       const saved =
         getProgress(userId, video.id) ?? emptyProgress(userId, video.id);
       let intervals: Interval[] = mergeIntervals(saved.watchedIntervals);
-      let duration = video.durationSeconds; 
+      let duration = video.durationSeconds;
       let lastTime: number | null = null;
       let lastSave = 0;
 
-      
       const resumeTarget = saved.lastPositionSeconds;
       let resumePending = resumeTarget > 1;
 
-      
       const el = document.createElement("video");
       el.className = "video-js vjs-big-play-centered";
       el.setAttribute("playsinline", "");
@@ -240,7 +227,6 @@ export default function SecureVideoPlayer() {
       el.setAttribute("oncontextmenu", "return false");
       container.appendChild(el);
 
-      
       const player: Player = videojs(el, {
         controls: true,
         fill: true,
@@ -271,7 +257,7 @@ export default function SecureVideoPlayer() {
       session.persist = () => {
         if (player.isDisposed()) return;
         intervals = mergeIntervals(intervals);
-        
+
         const position = resumePending
           ? resumeTarget
           : (player.currentTime() ?? 0);
@@ -284,7 +270,6 @@ export default function SecureVideoPlayer() {
         });
       };
 
-   
       const syncDuration = () => {
         const d = player.duration();
         if (typeof d === "number" && Number.isFinite(d) && d > 0) {
@@ -292,8 +277,8 @@ export default function SecureVideoPlayer() {
             duration = d;
             try {
               updateVideo(video.id, { durationSeconds: d });
-            } catch(err) {
-                console.error("update video error : ", err);
+            } catch (err) {
+              console.error("update video error : ", err);
             }
           }
         }
@@ -347,7 +332,7 @@ export default function SecureVideoPlayer() {
         if (resumePending) {
           tryResume();
           lastTime = null;
-          return; 
+          return;
         }
         const cur = player.currentTime() ?? 0;
         if (lastTime !== null) {
@@ -411,9 +396,7 @@ export default function SecureVideoPlayer() {
       const otherBlocked = mod && ["u", "s", "p"].includes(key);
 
       const addressBarKey =
-        (mod && key === "l") || 
-        e.key === "F6" || 
-        (e.altKey && key === "d");
+        (mod && key === "l") || e.key === "F6" || (e.altKey && key === "d");
 
       if (devToolsKey || otherBlocked || addressBarKey) {
         e.preventDefault();
@@ -476,8 +459,8 @@ export default function SecureVideoPlayer() {
         <strong>{title || "Video"}</strong>
         {stats && (
           <span>
-            Watched {Math.round(stats.percentage)}% · XP {stats.xp} /{" "}
-            {stats.maxXP}
+            {/* Watched {Math.round(stats.percentage)}% · XP {stats.xp} /{" "} */}
+            Earned XP : {stats.xp} / {stats.maxXP}
           </span>
         )}
         <button onClick={() => window.close()}>Close</button>

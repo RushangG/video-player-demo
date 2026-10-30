@@ -87,73 +87,115 @@ export class VideoStreamController {
     const startTime = Number(index) * SEGMENT_DURATION;
 
     if (!ffmpegStatic) {
-      throw new NotFoundException(
-        'FFmpeg binary path missing. Install ffmpeg-static.',
-      );
+      throw new NotFoundException('FFmpeg binary path missing.');
     }
 
     res.setHeader('Content-Type', 'video/MP2T');
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
 
-    const ffmpegArgs =
-      video.sourceType === 'local'
-        ? [
-            '-ss',
-            startTime.toString(),
-            '-t',
-            SEGMENT_DURATION.toString(),
-            '-i',
-            videoSource,
-            '-output_ts_offset',
-            startTime.toString(),
-            '-c:v',
-            'copy',
-            '-c:a',
-            'aac',
-            '-muxdelay',
-            '0',
-            '-f',
-            'mpegts',
-            'pipe:1',
-          ]
-        : [
-            '-protocol_whitelist',
-            'file,http,https,tcp,tls',
-            '-headers',
-            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\n',
-            '-i',
-            videoSource,
-            '-ss',
-            startTime.toString(),
-            '-t',
-            SEGMENT_DURATION.toString(),
-            '-output_ts_offset',
-            startTime.toString(),
-            '-c:v',
-            'libx264',
-            '-preset',
-            'ultrafast',
-            '-tune',
-            'zerolatency',
-            '-g',
-            '30',
-            '-c:a',
-            'aac',
-            '-b:a',
-            '128k',
-            '-fflags',
-            '+nobuffer+flush_packets',
-            '-f',
-            'mpegts',
-            'pipe:1',
-          ];
+    let ffmpegArgs: string[] = [];
+    const isExternal = video.sourceType === 'external';
+    const isM3U8 = videoSource.toLowerCase().includes('.m3u8');
+
+    if (!isExternal) {
+      // Local MP4 Configuration
+      ffmpegArgs = [
+        '-ss',
+        startTime.toString(),
+        '-t',
+        SEGMENT_DURATION.toString(),
+        '-i',
+        videoSource,
+        '-output_ts_offset',
+        startTime.toString(),
+        '-c:v',
+        'copy',
+        '-c:a',
+        'copy',
+        '-bsf:v',
+        'h264_mp4toannexb',
+        '-muxdelay',
+        '0',
+        '-f',
+        'mpegts',
+        'pipe:1',
+      ];
+    } else if (isM3U8) {
+      // External M3U8 Configuration
+      ffmpegArgs = [
+        '-protocol_whitelist',
+        'file,http,https,tcp,tls',
+        '-headers',
+        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\n',
+        '-i',
+        videoSource,
+        '-ss',
+        startTime.toString(),
+        '-t',
+        SEGMENT_DURATION.toString(),
+        '-output_ts_offset',
+        startTime.toString(),
+        '-c:v',
+        'libx264',
+        '-preset',
+        'ultrafast',
+        '-tune',
+        'zerolatency',
+        '-g',
+        '30',
+        '-c:a',
+        'aac',
+        '-b:a',
+        '128k',
+        '-fflags',
+        '+nobuffer+flush_packets',
+        '-f',
+        'mpegts',
+        'pipe:1',
+      ];
+    } else {
+      // External MP4 Configuration
+      ffmpegArgs = [
+        '-protocol_whitelist',
+        'file,http,https,tcp,tls',
+        '-headers',
+        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\n',
+        '-fflags',
+        '+nobuffer+flush_packets',
+        '-rw_timeout',
+        '5000000',
+        '-analyzeduration',
+        '100000',
+        '-probesize',
+        '100000',
+        '-ss',
+        startTime.toString(),
+        '-t',
+        SEGMENT_DURATION.toString(),
+        '-i',
+        videoSource,
+        '-output_ts_offset',
+        startTime.toString(),
+        '-c:v',
+        'copy',
+        '-c:a',
+        'copy',
+        '-bsf:v',
+        'h264_mp4toannexb',
+        '-muxdelay',
+        '0',
+        '-f',
+        'mpegts',
+        'pipe:1',
+      ];
+    }
 
     const ffmpeg = spawn(ffmpegStatic, ffmpegArgs);
     let errorLog = '';
 
     ffmpeg.stderr.on('data', (chunk: Buffer) => {
       errorLog += chunk.toString('utf8');
-      if (errorLog.length > 1000) errorLog = errorLog.slice(-1000); // Limit memory usage
+      if (errorLog.length > 500) errorLog = errorLog.slice(-500);
     });
 
     ffmpeg.on('error', (err) => {
@@ -164,7 +206,7 @@ export class VideoStreamController {
     ffmpeg.on('exit', (code) => {
       if (code !== 0 && code !== null) {
         console.error(
-          `FFmpeg exited with error code ${code} on chunk ${index}. Details:\n${errorLog}`,
+          `FFmpeg exited with error code ${code} on chunk ${index}.\n${errorLog}`,
         );
       }
     });

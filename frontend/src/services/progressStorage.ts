@@ -32,7 +32,6 @@ export function getProgress(userId: string, videoId: string): VideoProgress | nu
   return readAll()[makeKey(userId, videoId)] ?? null;
 }
 
-/** All progress of one student, keyed by videoId. */
 export function getProgressMapForUser(userId: string): Record<string, VideoProgress> {
   const out: Record<string, VideoProgress> = {};
   Object.values(readAll()).forEach((p) => {

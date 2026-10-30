@@ -8,7 +8,7 @@ import {
 } from "../config/demoUser";
 import { getVideos } from "../services/videoStorage";
 import { getProgressMapForUser } from "../services/progressStorage";
-import { formatTime } from "../utils/videoUtils";
+// import { formatTime } from "../utils/videoUtils";
 
 export default function VideoPortal() {
   const [userId, setUserId] = useState(getCurrentUserId());
@@ -83,7 +83,7 @@ export default function VideoPortal() {
             <tr>
               <th>#</th>
               <th>Topic</th>
-              <th>Duration</th>
+              {/* <th>Duration</th> */}
               <th>Progress</th>
               <th>XP</th>
               <th />
@@ -102,13 +102,13 @@ export default function VideoPortal() {
                 <tr key={v.id}>
                   <td>{i + 1}</td>
                   <td>{v.topicName}</td>
-                  <td>
+                  {/* <td>
                     {v.durationSeconds ? formatTime(v.durationSeconds) : "—"}
-                  </td>
+                  </td> */}
                   <td>
-                    <div className="bar">
+                    {/* <div className="bar">
                       <div className="bar-fill" style={{ width: `${pct}%` }} />
-                    </div>
+                    </div> */}
                     <small>
                       {pct}% {p?.completed && "· completed"}
                     </small>
