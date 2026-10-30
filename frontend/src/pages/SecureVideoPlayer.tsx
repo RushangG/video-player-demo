@@ -432,6 +432,14 @@ export default function SecureVideoPlayer() {
     window.addEventListener("dragstart", stopEvent);
     document.addEventListener("copy", onCopy, true);
 
+    // close player when user switch tab
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        window.close();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       disposed = true;
       if (guardTimer) window.clearInterval(guardTimer);
@@ -450,6 +458,7 @@ export default function SecureVideoPlayer() {
       playerRef.current = null;
       if (session.objectUrl) URL.revokeObjectURL(session.objectUrl);
       session.objectUrl = null;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [videoId]);
 
