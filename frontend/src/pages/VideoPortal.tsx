@@ -83,7 +83,6 @@ export default function VideoPortal() {
             <tr>
               <th>#</th>
               <th>Topic</th>
-              <th>Duration</th>
               <th>Progress</th>
               <th>XP</th>
               <th />
@@ -103,12 +102,6 @@ export default function VideoPortal() {
                   <td>{i + 1}</td>
                   <td>{v.topicName}</td>
                   <td>
-                    {v.durationSeconds ? formatTime(v.durationSeconds) : "—"}
-                  </td>
-                  <td>
-                    <div className="bar">
-                      <div className="bar-fill" style={{ width: `${pct}%` }} />
-                    </div>
                     <small>
                       {pct}% {p?.completed && "· completed"}
                     </small>
