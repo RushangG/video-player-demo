@@ -3,6 +3,7 @@
 /node_modules
 /build
 
+/video_cache
 # TypeScript build cache
 *.tsbuildinfo
 

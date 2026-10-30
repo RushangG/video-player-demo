@@ -1,11 +1,16 @@
-import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
+import {
+  NavLink,
+  Outlet,
+  RouterProvider,
+  createBrowserRouter,
+} from "react-router-dom";
 import VideoPortal from "./pages/VideoPortal";
 import VideoUpload from "./pages/VideoUpload";
 import SecureVideoPlayer from "./pages/SecureVideoPlayer";
 import VideoStream from "./pages/VideoStream";
 import "./styles.css";
 
-function Layout({ children }: { children: React.ReactNode }) {
+export function Layout() {
   return (
     <>
       <nav className="nav">
@@ -13,51 +18,49 @@ function Layout({ children }: { children: React.ReactNode }) {
           Portal
         </NavLink>
         <NavLink to="/admin">Admin</NavLink>
-        {/* <NavLink to="/video-stream-demo">video stream</NavLink> */}
+        <NavLink to="/video-stream-demo">Video Stream</NavLink>
       </nav>
-      <main className="container">{children}</main>
+
+      <main className="container">
+        <Outlet />
+      </main>
     </>
   );
 }
 
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <Layout />,
+    children: [
+      {
+        index: true,
+        element: <VideoPortal />,
+      },
+      {
+        path: "admin",
+        element: <VideoUpload />,
+      },
+      {
+        path: "video-stream-demo",
+        element: <VideoStream />,
+      },
+      {
+        path: "*",
+        element: <p>Page not found.</p>,
+      },
+    ],
+  },
+  {
+    path: "/player/:videoId",
+    element: <SecureVideoPlayer />,
+  },
+]);
+
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/player/:videoId" element={<SecureVideoPlayer />} />
-        <Route
-          path="/"
-          element={
-            <Layout>
-              <VideoPortal />
-            </Layout>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <Layout>
-              <VideoUpload />
-            </Layout>
-          }
-        />
-        <Route
-          path="/video-stream-demo"
-          element={
-            <Layout>
-              <VideoStream />
-            </Layout>
-          }
-        />
-        <Route
-          path="*"
-          element={
-            <Layout>
-              <p>Page not found.</p>
-            </Layout>
-          }
-        />
-      </Routes>
-    </BrowserRouter>
+    <>
+      <RouterProvider router={router} />
+    </>
   );
 }

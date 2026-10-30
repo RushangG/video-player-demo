@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { VideoStreamService } from './video-stream.service';
 import ffmpegStatic from 'ffmpeg-static';
 
@@ -52,6 +54,28 @@ export class VideoStreamController {
     const video = this.service.checkSession(id, token);
     const videoSource = this.service.getVideoTargetSource(video);
 
+    if (video.sourceType === 'external') {
+      const sessionDir = this.service.getSessionDir(token);
+      const manifestPath = join(sessionDir, 'playlist.m3u8');
+
+      res.setHeader('Content-Type', 'application/x-mpegURL');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+      let attempts = 0;
+      const interval = setInterval(() => {
+        attempts++;
+        if (existsSync(manifestPath)) {
+          clearInterval(interval);
+          return res.sendFile(manifestPath);
+        }
+        if (attempts > 40) {
+          clearInterval(interval);
+          if (!res.headersSent) res.status(404).end();
+        }
+      }, 100);
+      return;
+    }
+
     let duration = this.service.getVideoDuration(videoSource);
     if (duration === 0) duration = 60;
 
@@ -59,7 +83,6 @@ export class VideoStreamController {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 
     let manifest = `#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:${SEGMENT_DURATION}\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n`;
-
     let remainingTime = duration;
     let index = 0;
     while (remainingTime > 0) {
@@ -70,7 +93,6 @@ export class VideoStreamController {
       index++;
     }
     manifest += '#EXT-X-ENDLIST';
-
     return res.status(200).send(manifest);
   }
 
@@ -86,94 +108,64 @@ export class VideoStreamController {
     const videoSource = this.service.getVideoTargetSource(video);
     const startTime = Number(index) * SEGMENT_DURATION;
 
-    if (!ffmpegStatic) {
-      throw new NotFoundException(
-        'FFmpeg binary path missing. Install ffmpeg-static.',
-      );
-    }
+    if (!ffmpegStatic)
+      throw new NotFoundException('FFmpeg binary path missing.');
 
     res.setHeader('Content-Type', 'video/MP2T');
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
 
-    const ffmpegArgs =
-      video.sourceType === 'local'
-        ? [
-            '-ss',
-            startTime.toString(),
-            '-t',
-            SEGMENT_DURATION.toString(),
-            '-i',
-            videoSource,
-            '-output_ts_offset',
-            startTime.toString(),
-            '-c:v',
-            'copy',
-            '-c:a',
-            'aac',
-            '-muxdelay',
-            '0',
-            '-f',
-            'mpegts',
-            'pipe:1',
-          ]
-        : [
-            '-protocol_whitelist',
-            'file,http,https,tcp,tls',
-            '-headers',
-            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\n',
-            '-i',
-            videoSource,
-            '-ss',
-            startTime.toString(),
-            '-t',
-            SEGMENT_DURATION.toString(),
-            '-output_ts_offset',
-            startTime.toString(),
-            '-c:v',
-            'libx264',
-            '-preset',
-            'ultrafast',
-            '-tune',
-            'zerolatency',
-            '-g',
-            '30',
-            '-c:a',
-            'aac',
-            '-b:a',
-            '128k',
-            '-fflags',
-            '+nobuffer+flush_packets',
-            '-f',
-            'mpegts',
-            'pipe:1',
-          ];
+    // ROUTE 1: Local Files - High-speed on-the-fly streaming directly from local drive
+    if (video.sourceType !== 'external') {
+      const ffmpegArgs = [
+        '-ss',
+        startTime.toString(),
+        '-t',
+        SEGMENT_DURATION.toString(),
+        '-i',
+        videoSource,
+        '-output_ts_offset',
+        startTime.toString(),
+        '-c:v',
+        'copy',
+        '-c:a',
+        'copy',
+        '-bsf:v',
+        'h264_mp4toannexb',
+        '-muxdelay',
+        '0',
+        '-f',
+        'mpegts',
+        'pipe:1',
+      ];
 
-    const ffmpeg = spawn(ffmpegStatic, ffmpegArgs);
-    let errorLog = '';
+      const ffmpeg = spawn(ffmpegStatic, ffmpegArgs);
+      ffmpeg.stdout.pipe(res);
+      res.on('close', () => {
+        ffmpeg.kill('SIGKILL');
+      });
+      return;
+    }
 
-    ffmpeg.stderr.on('data', (chunk: Buffer) => {
-      errorLog += chunk.toString('utf8');
-      if (errorLog.length > 1000) errorLog = errorLog.slice(-1000); // Limit memory usage
-    });
+    // ROUTE 2 & 3: External URLs (MP4 & M3U8) - Served instantly from memory cache folder
+    const sessionDir = this.service.getSessionDir(token);
+    const filePath = join(sessionDir, `segment_${index}.ts`);
 
-    ffmpeg.on('error', (err) => {
-      console.error(`FFmpeg spawn failure on chunk ${index}:`, err.message);
-      if (!res.headersSent) res.status(500).end();
-    });
+    if (existsSync(filePath)) {
+      return res.sendFile(filePath);
+    }
 
-    ffmpeg.on('exit', (code) => {
-      if (code !== 0 && code !== null) {
-        console.error(
-          `FFmpeg exited with error code ${code} on chunk ${index}. Details:\n${errorLog}`,
-        );
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      if (existsSync(filePath)) {
+        clearInterval(interval);
+        return res.sendFile(filePath);
       }
-    });
-
-    ffmpeg.stdout.pipe(res);
-
-    res.on('close', () => {
-      ffmpeg.kill('SIGKILL');
-    });
+      if (attempts > 50) {
+        clearInterval(interval);
+        if (!res.headersSent) res.status(404).end();
+      }
+    }, 100);
   }
 
   private extractToken(id: string, req: Request): string {

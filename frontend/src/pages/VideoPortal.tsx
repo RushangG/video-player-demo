@@ -8,7 +8,7 @@ import {
 } from "../config/demoUser";
 import { getVideos } from "../services/videoStorage";
 import { getProgressMapForUser } from "../services/progressStorage";
-import { formatTime } from "../utils/videoUtils";
+// import { formatTime } from "../utils/videoUtils";
 
 export default function VideoPortal() {
   const [userId, setUserId] = useState(getCurrentUserId());

@@ -35,11 +35,11 @@ interface Session {
   persist: (() => void) | null;
 }
 
-const MAX_STEP = 1.5;
-const SAVE_EVERY_MS = 5000;
-const RESUME_GIVE_UP_MS = 10_000;
+const MAX_STEP = 1.5; // seconds
+const SAVE_EVERY_MS = 5000; // milliseconds
+const RESUME_GIVE_UP_MS = 10_000; // milliseconds
 
-const GUARD_ENABLED: boolean = import.meta.env.PROD;
+const GUARD_ENABLED: boolean = false; // Set to true to enable the guard against dev tools and debugging
 
 const HIDE_LINK_WITH_BLOB = true;
 
@@ -55,7 +55,6 @@ function isDebuggerPausing(): boolean {
   return performance.now() - start > 120;
 }
 
-// token max time 15 seconds.
 const TOKEN_MAX_AGE_MS = 15_000;
 
 function writeToken(videoId: string): void {
@@ -63,7 +62,6 @@ function writeToken(videoId: string): void {
   localStorage.setItem(`svp_token_${videoId}`, token);
 }
 
-// check token
 function consumeToken(videoId: string): boolean {
   const key = `svp_token_${videoId}`;
   const raw = localStorage.getItem(key);
@@ -109,7 +107,7 @@ export default function SecureVideoPlayer() {
   };
 
   useEffect(() => {
-    if (!videoId) {
+    if (!videoId || !pageRef.current || !containerRef.current) {
       setError("No video selected.");
       setLoading(false);
       return;
@@ -470,8 +468,8 @@ export default function SecureVideoPlayer() {
         <strong>{title || "Video"}</strong>
         {stats && (
           <span>
-            Watched {Math.round(stats.percentage)}% · XP {stats.xp} /{" "}
-            {stats.maxXP}
+            {/* Watched {Math.round(stats.percentage)}% · XP {stats.xp} /{" "} */}
+            Earned XP : {stats.xp} / {stats.maxXP}
           </span>
         )}
         <button onClick={() => window.close()}>Close</button>
