@@ -20,7 +20,6 @@ export default function VideoStream() {
   const [selectedId, setSelectedId] = useState("");
   const [error, setError] = useState("");
 
-  // Progress tracking states
   const [currentPercent, setCurrentPercent] = useState<number>(0);
   const [highestPercent, setHighestPercent] = useState<number>(0);
 
@@ -177,7 +176,7 @@ export default function VideoStream() {
         </select>
       </label>
 
-      <div
+      {/* <div
         style={{
           marginTop: 15,
           padding: 12,
@@ -187,7 +186,7 @@ export default function VideoStream() {
       >
         Progress Tracking: Current Position: <strong>{currentPercent}%</strong>{" "}
         | Total Viewed: <strong>{highestPercent}% / 100%</strong>
-      </div>
+      </div> */}
 
       {error && (
         <p role="alert" style={{ color: "crimson", marginTop: 12 }}>

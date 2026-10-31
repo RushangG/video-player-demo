@@ -10,6 +10,10 @@ import { getVideos } from "../services/videoStorage";
 import { getProgressMapForUser } from "../services/progressStorage";
 // import { formatTime } from "../utils/videoUtils";
 
+const generateSecureToken = (): string => {
+  return `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+};
+
 export default function VideoPortal() {
   const [userId, setUserId] = useState(getCurrentUserId());
   const [videos, setVideos] = useState<VideoData[]>([]);
@@ -39,10 +43,9 @@ export default function VideoPortal() {
     setUserId(id);
   };
 
-  // only video id.
-  const watch = (videoId: string) => {
+  function handleWatch(videoId: string) {
     // one time token for security
-    const token = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const token = generateSecureToken();
     localStorage.setItem(`svp_token_${videoId}`, token);
 
     const w = window.screen.availWidth;
@@ -52,7 +55,7 @@ export default function VideoPortal() {
       "SecureVideoWindow",
       `popup=yes,width=${w},height=${h},left=0,top=0,noopener`,
     );
-  };
+  }
 
   // const totalXP = Object.values(progress).reduce((sum, p) => sum + p.earnedXP, 0);
   // const maxTotalXP = videos.reduce((sum, v) => sum + v.maxXP, 0);
@@ -110,7 +113,7 @@ export default function VideoPortal() {
                     {p?.earnedXP ?? 0} / {v.maxXP}
                   </td>
                   <td>
-                    <button onClick={() => watch(v.id)}>{label}</button>
+                    <button onClick={() => handleWatch(v.id)}>{label}</button>
                   </td>
                 </tr>
               );
