@@ -129,6 +129,7 @@ export default function VideoUpload() {
         <input
           id="topic"
           type="text"
+          placeholder="Enter a topic name"
           value={topicName}
           onChange={(e) => setTopicName(e.target.value)}
         />
@@ -142,6 +143,7 @@ export default function VideoUpload() {
           min={1}
           max={50}
           value={xp}
+          placeholder="Enter maximum XP (1-50)"
           onChange={(e) => setXP(e.target.value)}
         />
       </div>

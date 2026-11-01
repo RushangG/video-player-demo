@@ -21,6 +21,8 @@ export class VideoStreamController {
       .map(({ id, title, sourceType }) => ({ id, title, sourceType }));
   }
 
+  
+
   @Post('session/:id')
   createVideoSession(
     @Param('id') id: string,
@@ -46,6 +48,8 @@ export class VideoStreamController {
     const token = this.extractToken(id, req);
     await this.service.handlePlaylistStreaming(id, token, res);
   }
+
+  
 
   @Get('stream/:id/segment_:index.ts')
   async getVirtualSegment(

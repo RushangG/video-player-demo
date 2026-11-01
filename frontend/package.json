@@ -10,15 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@videojs/react": "^10.1.0",
-    "@videojs/youtube-video": "^10.1.0",
     "axios": "^1.21.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-player": "^3.4.0",
     "react-router-dom": "^7.18.4",
-    "video.js": "^8.24.2",
-    "videojs-youtube": "^3.0.1"
+    "video.js": "^8.24.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
