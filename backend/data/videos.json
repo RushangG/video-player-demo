@@ -4,13 +4,13 @@
     "id": "1",
     "title": "Local Demo Video",
     "sourceType": "local",
-    "filename": "test-video.mp4"
+    "filename": "test-video-2.mp4" 
   },
   {
     "id": "2",
     "title": "Local Demo Video 2",
     "sourceType": "local",
-    "filename": "test-video-2.mp4"
+    "filename": "test-video.mp4"
   },
   {
     "id": "3",

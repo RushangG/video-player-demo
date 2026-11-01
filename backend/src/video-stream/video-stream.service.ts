@@ -27,6 +27,8 @@ type SessionData = {
   process?: ChildProcess;
 };
 
+const SEGMENT_DURATION = 10;
+
 @Injectable()
 export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
   private readonly videosPath = resolve(process.cwd(), 'data/videos.json');
@@ -105,7 +107,7 @@ export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
           '-c:a',
           'copy',
           '-hls_time',
-          '4',
+          SEGMENT_DURATION.toString(),
           '-hls_list_size',
           '0',
           '-hls_playlist_type',
@@ -128,7 +130,7 @@ export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
           '-bsf:v',
           'h264_mp4toannexb',
           '-hls_time',
-          '4',
+          SEGMENT_DURATION.toString(),
           '-hls_list_size',
           '0',
           '-hls_playlist_type',
@@ -140,7 +142,6 @@ export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
 
     if (ffmpegStatic) {
       ffmpegProcess = spawn(ffmpegStatic, ffmpegArgs);
-      
 
       let lastLoggedSegment = -1;
       ffmpegProcess.stderr?.on('data', (chunk: Buffer) => {
@@ -152,7 +153,6 @@ export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
         if (segmentMatch && segmentMatch[1]) {
           const segmentIndex = parseInt(segmentMatch[1], 10);
           if (segmentIndex !== lastLoggedSegment) {
-            
             lastLoggedSegment = segmentIndex;
           }
         }
