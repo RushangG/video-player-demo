@@ -4,13 +4,21 @@ import {
   OnModuleDestroy,
   NotFoundException,
   UnauthorizedException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { readFileSync, existsSync, mkdirSync } from 'node:fs';
-import { resolve, basename, extname, join } from 'node:path';
+import path, { resolve, basename, extname, join } from 'node:path';
 import { execSync, spawn, ChildProcess } from 'node:child_process';
 import * as ffprobeStatic from 'ffprobe-static';
+import * as fs from 'fs';
+import * as crypto from 'crypto';
+import ffmpeg from 'fluent-ffmpeg';
 import ffmpegStatic from 'ffmpeg-static';
+import { url } from 'node:inspector';
 
+if (ffmpegStatic) {
+  ffmpeg.setFfmpegPath(ffmpegStatic);
+}
 export type Video = {
   id: string;
   title: string;
@@ -26,7 +34,10 @@ type SessionData = {
   sessionDir: string;
   process?: ChildProcess;
 };
-
+interface downloadAndChunkType {
+  status: string;
+  message: string;
+}
 const EXTERNAL_URL_SEGMENT_DURATION = 20;
 
 @Injectable()
@@ -142,7 +153,6 @@ export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
 
     if (ffmpegStatic) {
       ffmpegProcess = spawn(ffmpegStatic, ffmpegArgs);
-      
 
       let lastLoggedSegment = -1;
       ffmpegProcess.stderr?.on('data', (chunk: Buffer) => {
@@ -154,7 +164,6 @@ export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
         if (segmentMatch && segmentMatch[1]) {
           const segmentIndex = parseInt(segmentMatch[1], 10);
           if (segmentIndex !== lastLoggedSegment) {
-            
             lastLoggedSegment = segmentIndex;
           }
         }
@@ -262,5 +271,93 @@ export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
     } catch (e) {
       return 0;
     }
+  }
+
+  async downloadAndChunk(
+    videoUrl: string,
+    title: string,
+  ): Promise<downloadAndChunkType> {
+    const hashedFolderName = crypto
+      .createHash('md5')
+      .update(videoUrl)
+      .digest('hex');
+
+    const outputDir = path.join(process.cwd(), 'video_cache', hashedFolderName);
+    const outputPlaylist = path.join(outputDir, 'playlist.m3u8');
+    const segmentFilenamePattern = path.join(outputDir, 'segment_%01d.ts');
+
+    // Check if the folder already exists
+    if (fs.existsSync(outputDir)) {
+      console.log(
+        `Video chunks already exist for this URL. Skipping processing.`,
+      );
+      return {
+        status: 'skipped',
+        message: 'Video chunks already exist for this URL.',
+      };
+    }
+
+    //Create the new folder path if it does not exist
+    fs.mkdirSync(outputDir, { recursive: true });
+
+    return new Promise((resolve, reject) => {
+      //  Use FFmpeg to process the stream link
+      const command = ffmpeg(videoUrl);
+      command
+        .outputOptions([
+          '-c:v libx264',
+          '-profile:v baseline',
+          '-level 3.0',
+          '-c:a aac',
+          '-start_number 0',
+          `-hls_time ${EXTERNAL_URL_SEGMENT_DURATION}`, // Duration of each chunk in seconds 
+          '-hls_list_size 0',
+          `-hls_segment_filename ${segmentFilenamePattern}`, //segment name
+          '-f hls',
+        ])
+        .output(outputPlaylist)
+        .on('end', async () => {
+          console.log('Chunking finished successfully.');
+          resolve({
+            status: 'success',
+            message: 'Video processed and chunked successfully',
+          });
+
+          const newVideoData = {
+            id: hashedFolderName,
+            title: title,
+            sourceType: 'external',
+            url: videoUrl,
+          };
+          const videoDataPath = path.join(process.cwd(), 'data', 'videos.json');
+
+          try {
+            const fileData = await fs.promises.readFile(videoDataPath, 'utf-8');
+            const videosArray = JSON.parse(fileData);
+
+            videosArray.push(newVideoData);
+            fs.promises.writeFile(
+              videoDataPath,
+              JSON.stringify(videosArray, null, 2),
+              'utf8',
+            );
+            console.log('Video data appended successfully!');
+          } catch (error) {
+            console.error('Error updating the JSON file:', error);
+          }
+        })
+        .on('error', (err, stderr) => {
+          console.error('Error processing video:', err);
+          console.error('FFmpeg Stderr:', stderr);
+          reject(
+            new InternalServerErrorException('Failed to process video chunks'),
+          );
+
+          if (fs.existsSync(outputDir)) {
+            fs.rmSync(outputDir, { recursive: true, force: true });
+          }
+        })
+        .run();
+    });
   }
 }

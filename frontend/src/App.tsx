@@ -9,6 +9,7 @@ import VideoUpload from "./pages/VideoUpload";
 import SecureVideoPlayer from "./pages/SecureVideoPlayer";
 import VideoStream from "./pages/VideoStream";
 import "./styles.css";
+import { VideoUrlToChunk } from "./pages/VideoUrlToChunk";
 
 export function Layout() {
   return (
@@ -19,6 +20,7 @@ export function Layout() {
         </NavLink>
         <NavLink to="/admin">Admin</NavLink>
         <NavLink to="/video-stream-demo">Video Stream</NavLink>
+        <NavLink to="/url-to-chunk">Download video in Chunk</NavLink>
       </nav>
 
       <main className="container">
@@ -44,6 +46,10 @@ const router = createBrowserRouter([
       {
         path: "video-stream-demo",
         element: <VideoStream />,
+      },
+      {
+        path:"url-to-chunk",
+        element: <VideoUrlToChunk/>
       },
       {
         path: "*",
