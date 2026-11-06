@@ -20,6 +20,7 @@ import {
   mergeIntervals,
   sumIntervals,
 } from "../utils/videoUtils";
+import WatermarkOverlay from "./WatermarkOverlay";
 
 type Player = ReturnType<typeof videojs>;
 
@@ -495,13 +496,18 @@ export default function SecureVideoPlayer() {
         <>
           {loading && <p className="player-error">Loading video…</p>}
           <div
-            ref={containerRef}
             className="player-stage"
             onContextMenu={(e) => e.preventDefault()}
-          />
+          >
+            <div ref={containerRef} className="player-video-container" />
+
+            {started && !loading && <WatermarkOverlay position="top-right" />}
+          </div>
+
           {!started && !loading && (
             <div className="start-overlay">
               <button onClick={startFullscreen}>Start Video</button>
+
               <p>
                 Leaving full screen will end the session and close this window.
               </p>

@@ -11,7 +11,7 @@ import { execSync, spawn, ChildProcess } from 'node:child_process';
 import type { Response } from 'express';
 import * as ffprobeStatic from 'ffprobe-static';
 import ffmpegStatic from 'ffmpeg-static';
-
+import axios from 'axios';
 export type Video = {
   id: string;
   title: string;
@@ -335,9 +335,41 @@ export class VideoStreamService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    if (id === '7') {
+      console.log(
+        `https://res.cloudinary.com/jbkfusy9/video/upload/v1793792402/segment_${index}.ts`,
+      );
+      const cloudinaryUrl = `https://res.cloudinary.com/jbkfusy9/video/upload/v1793792402/segment_${index}.ts`;
+
+      try {
+        const streamResponse = await axios.get(cloudinaryUrl, {
+          responseType: 'stream',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          },
+        });
+
+        res.setHeader('Content-Type', 'video/MP2T');
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+
+        console.log(
+          `[VideoStreamService] Successfully proxied segment ${index} from Cloudinary.`,
+        );
+
+        return streamResponse.data.pipe(res);
+      } catch (error: any) {
+        console.error(
+          `Failed to proxy segment ${index} from Cloudinary:`,
+          error.message,
+        );
+        return res.status(404).end();
+      }
+    }
+
     const filePath = join(this.baseCacheDir, token, `segment_${index}.ts`);
+
     await this.pollForFile(filePath, res, 50);
-  }
+  }  
 
   private pollForFile(
     filePath: string,

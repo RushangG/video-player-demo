@@ -30,5 +30,17 @@
     "title": "External Demo Video 5 (10 min)",
     "sourceType": "external",
     "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+  },
+  {
+    "id": "6",
+    "title": "Cloudinary Demo Video 6 (3 min)",
+    "sourceType": "external",
+    "url": "https://res.cloudinary.com/jbkfusy9/video/upload/v1793769435/test-video-_3min.mp4"
+  },
+   {
+    "id": "7",
+    "title": "Cloudinary Demo Video 7 (5 min)",
+    "sourceType": "external",
+    "url": "https://res.cloudinary.com/jbkfusy9/video/upload/video-test_5_Minutes.mp4"
   }
 ]

@@ -23,9 +23,48 @@ th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #e5e7eb; 
 /* player page */
 .player-page { position: fixed; inset: 0; display: flex; flex-direction: column; background: #000; color: #fff; user-select: none; }
 .player-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px; background: #111827; }
-.player-stage { position: relative; flex: 1; }
+.player-stage { position: relative; flex: 1; overflow: hidden; }
+.player-video-container { width: 100%; height: 100%; }
 .player-error { padding: 24px; }
 
+/* watermark overlay */
+.video-watermark {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  user-select: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 255, 255);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  padding: 4px 10px;
+  border-radius: 4px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.video-watermark-top-right {
+  top: 16px;
+  right: 16px;
+}
+
+.video-watermark-top-left {
+  top: 16px;
+  left: 16px;
+}
+
+.video-watermark-bottom-right {
+  bottom: 60px;
+  right: 16px;
+}
+
+.video-watermark-bottom-left {
+  bottom: 60px;
+  left: 16px;
+}
 /* fullscreen start overlay */
 .start-overlay {
   position: absolute;
