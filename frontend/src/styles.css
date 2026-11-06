@@ -1,0 +1,42 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; color: #1f2937; background: #f3f4f6; }
+.nav { display: flex; gap: 16px; padding: 12px 24px; background: #111827; }
+.nav a { color: #9ca3af; text-decoration: none; font-weight: 600; }
+.nav a.active { color: #fff; }
+.container { max-width: 900px; margin: 24px auto; padding: 0 16px; }
+.card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; }
+.row { display: flex; justify-content: space-between; align-items: center; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; max-width: 460px; }
+.field input[type="text"], .field input[type="url"], .field input[type="number"] { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; }
+button { padding: 8px 14px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }
+button:disabled { opacity: 0.6; cursor: default; }
+button.danger { background: #dc2626; }
+table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
+.bar { width: 140px; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; background: #10b981; }
+.muted { color: #6b7280; }
+.summary { margin: 4px 0 12px; }
+.msg.error { color: #b91c1c; font-weight: 600; }
+.msg.ok { color: #047857; font-weight: 600; }
+
+/* player page */
+.player-page { position: fixed; inset: 0; display: flex; flex-direction: column; background: #000; color: #fff; user-select: none; }
+.player-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px; background: #111827; }
+.player-stage { position: relative; flex: 1; }
+.player-error { padding: 24px; }
+
+/* fullscreen start overlay */
+.start-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.92);
+  color: #fff;
+}
+.start-overlay button { font-size: 1.2rem; padding: 14px 28px; }

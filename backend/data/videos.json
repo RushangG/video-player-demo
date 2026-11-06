@@ -1,0 +1,47 @@
+
+[
+  {
+    "id": "1",
+    "title": "Local Demo Video",
+    "sourceType": "local",
+    "filename": "test-video.mp4"
+  },
+  {
+    "id": "2",
+    "title": "Local Demo Video 2",
+    "sourceType": "local",
+    "filename": "test-video-2.mp4"
+  },
+  {
+    "id": "3",
+    "title": "External Demo Video",
+    "sourceType": "external",
+    "url": "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4"
+  },
+  {
+    "id": "4",
+    "title": "External Demo Video 2",
+    "sourceType": "external",
+    "url": "https://samplelib.com/mp4/sample-10s-2160p.mp4"
+  },
+  {
+    "id": "5",
+    "title": "External Demo Video 3",
+    "sourceType": "external",
+    "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+  },
+  {
+    "id": "6",
+    "title": "External cloudinary Video(3-min)",
+    "sourceType": "external",
+    "url": "https://res.cloudinary.com/jbkfusy9/video/upload/v1793769435/test-video-_3min.mp4"
+  },
+  {
+    "id": "7",
+    "title": "External cloudinary Video(5-min)",
+    "sourceType": "external",
+    "url": "https://res.cloudinary.com/jbkfusy9/video/upload/video-test_5_Minutes.mp4"
+  }
+
+  
+]
